@@ -1,17 +1,12 @@
-from sentence_transformers import SentenceTransformer
-from groq import Groq
-
-from dotenv import load_dotenv
-load_dotenv()
-
 import json
-import faiss
-import numpy as np
 import os
 
-client = Groq(
-    api_key=os.getenv("GROQ_API_KEY")
-)
+import faiss
+import numpy as np
+import ollama
+from sentence_transformers import SentenceTransformer
+
+OLLAMA_LLM_MODEL = "gemma:7b"
 
 model = SentenceTransformer(
     "BAAI/bge-small-en-v1.5"
@@ -51,7 +46,7 @@ query_embedding = model.encode(
 
 D, I = index.search(
     np.array([query_embedding]),
-    10
+    8
 )
 
 context = ""
@@ -70,10 +65,8 @@ FILE: {chunk['file']}
 
 """
 
-response = client.chat.completions.create(
-
-    model="llama-3.3-70b-versatile",
-
+response = ollama.chat(
+    model=OLLAMA_LLM_MODEL,
     messages=[
         {
             "role": "system",
@@ -128,8 +121,9 @@ response = client.chat.completions.create(
             7. Recommended Founder Action
             """
         }
-    ]
+    ],
+    options={"temperature": 0.2},
 )
 
 print("\n")
-print(response.choices[0].message.content)
+print(response["message"]["content"])

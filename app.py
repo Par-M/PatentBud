@@ -15,7 +15,6 @@ import numpy as np
 
 st.set_page_config(
     page_title="Patent Intelligence Dashboard",
-    page_icon="🔬",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -151,6 +150,7 @@ st.markdown("""
 BASE_DIR = os.path.expanduser("~/Desktop/patent-intelligence")
 CHUNKS_DIR = os.path.join(BASE_DIR, "chunks")
 EMBEDDINGS_DIR = os.path.join(BASE_DIR, "embeddings")
+OLLAMA_LLM_MODEL = "gemma:7b"
 
 OVERLAP_CATEGORIES = [
     "Communication Coaching",
@@ -184,9 +184,6 @@ def load_metadata():
     meta_path = os.path.join(EMBEDDINGS_DIR, "embeddings.json")
     with open(meta_path, "r", encoding="utf-8") as f:
         return json.load(f)
-
-
-# Removed get_groq_client since we are using local Ollama
 
 
 def get_patent_list():
@@ -224,7 +221,7 @@ def get_chunk_files(patent_id):
 # FAISS search
 # ---------------------------------------------------------------------------
 
-def search_patents(query, top_k=10):
+def search_patents(query, top_k=8):
     """Run semantic search and return (chunks, context_string)."""
     model = load_model()
     index = load_faiss_index()
@@ -258,7 +255,7 @@ def search_patents(query, top_k=10):
 
 
 # ---------------------------------------------------------------------------
-# Groq LLM call with structured JSON output
+# Ollama LLM call with structured JSON output
 # ---------------------------------------------------------------------------
 
 SYSTEM_PROMPT = """\
@@ -314,7 +311,7 @@ def analyze_patents(query, context):
 
     try:
         response = ollama.chat(
-            model="qwen3:14b",
+            model=OLLAMA_LLM_MODEL,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_message},
@@ -333,7 +330,10 @@ def analyze_patents(query, context):
         }
         return parsed
     except Exception as e:
-        st.error(f"LLM call failed: {e}. Make sure Ollama is running and the model is pulled.")
+        st.error(
+            f"LLM call failed: {e}. Make sure Ollama is running and "
+            f"`ollama pull {OLLAMA_LLM_MODEL}` has been run."
+        )
         return None
 
 
@@ -466,7 +466,7 @@ def render_patents_table(patents):
 
 def render_sidebar():
     """Patent library browser in the sidebar."""
-    st.sidebar.markdown("## 📚 Patent Library")
+    st.sidebar.markdown("## Patent Library")
     st.sidebar.caption("Browse your analyzed patent portfolio")
 
     patents = get_patent_list()
@@ -493,12 +493,12 @@ def render_sidebar():
 
     # Display key sections
     display_order = [
-        ("abstract.txt", "📄 Abstract"),
-        ("claim_1.txt", "⚖️ Claim 1"),
-        ("independent_claims.txt", "🏛️ Independent Claims"),
-        ("key_claims.txt", "🔑 Key Claims"),
-        ("invention_summary.txt", "📋 Invention Summary"),
-        ("metadata.txt", "ℹ️ Metadata"),
+        ("abstract.txt", "Abstract"),
+        ("claim_1.txt", "Claim 1"),
+        ("independent_claims.txt", "Independent Claims"),
+        ("key_claims.txt", "Key Claims"),
+        ("invention_summary.txt", "Invention Summary"),
+        ("metadata.txt", "Metadata"),
     ]
 
     for filename, label in display_order:
@@ -521,7 +521,7 @@ def main():
     # Header
     st.markdown("""
     <div class="dashboard-header">
-        <h1>🔬 Patent Intelligence Dashboard</h1>
+        <h1>Patent Intelligence Dashboard</h1>
         <p>Search and analyze patent portfolios using semantic search and AI-powered patent intelligence.</p>
     </div>
     """, unsafe_allow_html=True)
@@ -538,32 +538,19 @@ def main():
         top_k = st.slider(
             "Number of Chunks",
             min_value=3,
-            max_value=20,
-            value=10,
+            max_value=8,
+            value=8,
             key="top_k_slider",
         )
 
-    analyze_clicked = st.button("🔍  Analyze", type="primary", use_container_width=True)
-
-    # Example queries
-    with st.expander("💡 Example questions", expanded=False):
-        st.caption("Click any example to copy it into the search box:")
-        examples = [
-            "Which patents overlap with AI communication coaching?",
-            "What prior art exists for emotion-aware conversational systems?",
-            "Which patents are most relevant to Verity?",
-            "Are there patents covering real-time conversation guidance?",
-            "What patents relate to cultural fluency training?",
-        ]
-        for ex in examples:
-            st.code(ex, language=None)
+    analyze_clicked = st.button("Analyze", type="primary", use_container_width=True)
 
     st.markdown("---")
 
     # Run analysis
     if analyze_clicked and query.strip():
         # Step 1: FAISS retrieval
-        with st.spinner("🔎 Searching patent database..."):
+        with st.spinner("Searching patent database..."):
             chunks, context = search_patents(query, top_k)
 
         if not chunks:
@@ -571,7 +558,7 @@ def main():
             return
 
         # Step 2: LLM analysis
-        with st.spinner("🧠 Analyzing patents with AI..."):
+        with st.spinner("Analyzing patents..."):
             result = analyze_patents(query, context)
 
         if not result:
@@ -596,7 +583,6 @@ def main():
         # Empty state
         st.markdown("""
         <div style="text-align:center; padding:3rem; color:#64748b">
-            <div style="font-size:3rem; margin-bottom:1rem">🔬</div>
             <div style="font-size:1.1rem; font-weight:600; margin-bottom:0.5rem">Ready to analyze</div>
             <div style="font-size:0.9rem">Enter a patent question above and click Analyze to get started.</div>
         </div>
@@ -608,9 +594,9 @@ def render_results(result, chunks, context, query):
 
     # Tabs
     tab_analysis, tab_claims, tab_chunks = st.tabs([
-        "📊 Analysis",
-        "⚖️ Claims",
-        "📦 Retrieved Chunks",
+        "Analysis",
+        "Claims",
+        "Retrieved Chunks",
     ])
 
     # ── Tab 1: Analysis ──────────────────────────────────────────────
@@ -619,7 +605,7 @@ def render_results(result, chunks, context, query):
         # Performance Metrics (if available)
         metrics = result.get("_metrics")
         if metrics:
-            with st.expander("⚡ LLM Performance Metrics"):
+            with st.expander("LLM Performance Metrics"):
                 m_cols = st.columns(4)
                 m_cols[0].metric("Total Time", f"{metrics['total_time_s']:.2f}s")
                 m_cols[1].metric("Context Tokens", f"{metrics['prompt_tokens']}")
@@ -631,12 +617,12 @@ def render_results(result, chunks, context, query):
                 m_cols[3].metric("Tokens / Sec", f"{tps:.1f} t/s")
 
         # Executive Summary
-        st.markdown('<div class="section-card"><h3>📋 Executive Summary</h3>', unsafe_allow_html=True)
+        st.markdown('<div class="section-card"><h3>Executive Summary</h3>', unsafe_allow_html=True)
         st.markdown(result.get("executive_summary", "No summary available."))
         st.markdown('</div>', unsafe_allow_html=True)
 
         # Risk Assessment
-        st.markdown("#### 🎯 Risk Assessment")
+        st.markdown("#### Risk Assessment")
         render_risk_card(
             result.get("risk_score", 0),
             result.get("risk_level", "Unknown"),
@@ -647,29 +633,29 @@ def render_results(result, chunks, context, query):
         col_left, col_right = st.columns(2)
 
         with col_left:
-            st.markdown("#### 🔍 Key Findings")
-            render_bullet_list(result.get("key_findings", []), icon="🔹")
+            st.markdown("#### Key Findings")
+            render_bullet_list(result.get("key_findings", []))
 
             st.markdown("")
-            st.markdown("#### 💡 Differentiation Opportunities")
-            render_bullet_list(result.get("differentiation_opportunities", []), icon="✅")
+            st.markdown("#### Differentiation Opportunities")
+            render_bullet_list(result.get("differentiation_opportunities", []))
 
         with col_right:
-            st.markdown("#### 🚀 Recommended Actions")
-            render_bullet_list(result.get("recommended_actions", []), icon="➡️")
+            st.markdown("#### Recommended Actions")
+            render_bullet_list(result.get("recommended_actions", []))
 
             st.markdown("")
-            st.markdown("#### 📑 Relevant Patents")
+            st.markdown("#### Relevant Patents")
             render_patents_table(result.get("relevant_patents", []))
 
         # Overlap Analysis — full width
         st.markdown("---")
-        st.markdown("#### 🔗 Overlap With Verity")
+        st.markdown("#### Overlap With Verity")
         render_overlap_grid(result.get("overlap_analysis", {}))
 
     # ── Tab 2: Claims ────────────────────────────────────────────────
     with tab_claims:
-        st.markdown("#### ⚖️ Patent Claims Viewer")
+        st.markdown("#### Patent Claims Viewer")
         st.caption("Review claims for patents retrieved in the analysis.")
 
         # Deduplicate patents from chunks
@@ -682,7 +668,7 @@ def render_results(result, chunks, context, query):
             st.info("No patents retrieved.")
         else:
             for patent_id in seen_patents:
-                with st.expander(f"📄 {patent_id}", expanded=False):
+                with st.expander(patent_id, expanded=False):
                     claim_files = [
                         ("claim_1.txt", "Claim 1"),
                         ("independent_claims.txt", "Independent Claims"),
@@ -702,7 +688,7 @@ def render_results(result, chunks, context, query):
 
     # ── Tab 3: Retrieved Chunks ──────────────────────────────────────
     with tab_chunks:
-        st.markdown("#### 📦 RAG Context — Retrieved Chunks")
+        st.markdown("#### RAG Context — Retrieved Chunks")
         st.caption(f"These {len(chunks)} chunks were sent to the LLM for analysis.")
 
         for chunk in chunks:
@@ -714,7 +700,7 @@ def render_results(result, chunks, context, query):
             """, unsafe_allow_html=True)
 
         # Full context in collapsible
-        with st.expander("📝 Full context string sent to LLM"):
+        with st.expander("Full context string sent to LLM"):
             st.text(context[:10000])
             if len(context) > 10000:
                 st.caption(f"... truncated ({len(context):,} chars total)")
