@@ -1,0 +1,55 @@
+# === Patent Data (large binary / generated files) ===
+patents/
+extracted_text/
+embeddings/
+chunks/
+
+# === Vector Database ===
+chroma_db/
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# === Environment / Secrets ===
+.env
+.env.local
+*.key
+*.pem
+
+# === macOS ===
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# === Swift build artifacts ===
+*.o
+*.d
+*.swp
+DerivedData/
+
+# === Editors ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# === Logs ===
+*.log
+logs/
+
+# === Testing ===
+.pytest_cache/
+.coverage
+htmlcov/
