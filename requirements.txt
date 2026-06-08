@@ -4,3 +4,7 @@ sentence-transformers
 streamlit
 llama-index
 ollama
+groq
+faiss-cpu
+numpy
+python-dotenv
